@@ -4,16 +4,32 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: shaheera-portfolio
+    # Host port defaults to 3001 so this does not clash with dev servers on 3000.
+    # Use HOST_PORT=3000 in .env when nothing else is listening on 3000.
     ports:
-      - "3000:3000"
+      - "${HOST_PORT:-3001}:3000"
     environment:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - NODE_ENV=production
+      # Nitro listen port inside the container (must match the right side of ports: mapping)
+      - PORT=3000
+      # Keep V8 heap below the container memory limit (see deploy.resources.limits)
+      - NODE_OPTIONS=--max-old-space-size=256
     env_file:
       - .env
     restart: unless-stopped
+    # Small portfolio: cap CPU/RAM so the host is not starved (Compose v2+)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.35"
+          memory: 384M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      # Checks Nitro on the container network — use PORT (inside), not HOST_PORT (on your machine).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$$PORT/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
