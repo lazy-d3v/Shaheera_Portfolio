@@ -11,7 +11,9 @@ services:
     environment:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - NODE_ENV=production
-      # Nitro listen port inside the container (must match the right side of ports: mapping)
+      # Nitro listen address/port inside the container (must match ports: …:3000)
+      # Without NITRO_HOST, Node often logs [::]:3000 (IPv6 all interfaces) — still valid; 0.0.0.0 is explicit IPv4.
+      - NITRO_HOST=0.0.0.0
       - PORT=3000
       # Keep V8 heap below the container memory limit (see deploy.resources.limits)
       - NODE_OPTIONS=--max-old-space-size=256
