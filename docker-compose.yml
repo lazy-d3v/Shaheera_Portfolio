@@ -4,8 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: shaheera-portfolio
-    # Host port defaults to 3001 so this does not clash with dev servers on 3000.
-    # Use HOST_PORT=3000 in .env when nothing else is listening on 3000.
+    # Published host port (${HOST_PORT}) — set in Dokploy → Environment so compose interpolation sees it (Preview Compose must show e.g. "9999:3000").
+    # Dokploy normally serves the app via Traefik (Domains tab → http/https on :80 / :443), not http://SERVER_IP:HOST_PORT — use a domain for that path.
+    # If you need IP:HOST_PORT from the internet: allow TCP HOST_PORT in the server firewall (ufw, etc.) and cloud security group; on the server run `curl -sI http://127.0.0.1:9999` (replace 9999) — if that works but the public IP does not, it is firewall/routing.
     ports:
       - "${HOST_PORT:-3001}:3000"
     environment:
@@ -30,8 +31,12 @@ services:
           cpus: "0.05"
           memory: 64M
     healthcheck:
-      # Checks Nitro on the container network — use PORT (inside), not HOST_PORT (on your machine).
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$$PORT/ >/dev/null || exit 1"]
+      # Node image often has no wget/curl; use Node's http (reads PORT from env, same as Nitro).
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:'+(process.env.PORT|| process.env.HOST_PORT ||3000)+'/',(r)=>{r.resume();process.exit(r.statusCode>=200&&r.statusCode<500?0:1)}).on('error',()=>process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
